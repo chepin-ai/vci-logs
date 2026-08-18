@@ -1,0 +1,8 @@
+{
+ "repo": "vci-logs",
+ "line": "ci-logs",
+ "tag": "归档考古",
+ "spec": "SHADOW-CI-01",
+ "lane": "provision/vci",
+ "v": 1
+}
