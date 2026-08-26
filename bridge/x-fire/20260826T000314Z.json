@@ -1,0 +1,8 @@
+{
+ "ts": "2026-08-26T00:03:14Z",
+ "op": "beacon-read",
+ "out": {
+  "beacon": 16
+ },
+ "challenge": "326487aa755b8408"
+}
