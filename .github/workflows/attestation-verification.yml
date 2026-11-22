@@ -57,3 +57,13 @@ jobs:
           }
           grep -q '^VERIFICATION_PASS$' /tmp/attestation-verification.log
           echo 'ATTESTATION_VERIFICATION_PASS'
+
+      - name: Record failure privately
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.AI_FULL_PAT }}
+          TARGET_PRIVATE_REPO: ${{ secrets.TARGET_PRIVATE_REPO }}
+        run: |
+          set -eu
+          gh issue create --repo "$TARGET_PRIVATE_REPO" --title "Attestation verification debug" --body-file /tmp/attestation-verification.log
+          echo 'PRIVATE_DEBUG_RECORDED'
