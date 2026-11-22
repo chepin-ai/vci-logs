@@ -51,7 +51,7 @@ jobs:
         run: |
           set -eu
           cd "target/$ARCHIVE_PATH/verified"
-          sh verify.sh /tmp/mathlib4 > /tmp/attestation-verification.log 2>&1 || {
+          sh -x verify.sh /tmp/mathlib4 > /tmp/attestation-verification.log 2>&1 || {
             echo 'ATTESTATION_VERIFICATION_FAIL'
             exit 1
           }
