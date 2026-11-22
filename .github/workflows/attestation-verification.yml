@@ -1,0 +1,49 @@
+name: attestation-verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Verification channel identifier
+        required: false
+        default: default
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.TARGET_PRIVATE_REPO }}
+          token: ${{ secrets.AI_FULL_PAT }}
+          path: target
+          fetch-depth: 1
+          quiet: true
+
+      - name: Install Lean toolchain
+        uses: leanprover/lean-action@v1
+        with:
+          toolchain: leanprover/lean4:v4.20.0
+
+      - name: Prepare pinned Mathlib
+        env:
+          MATHLIB_VERSION: v4.20.0
+        run: |
+          set -eu
+          git clone --depth 1 --branch "$MATHLIB_VERSION" https://github.com/leanprover-community/mathlib4.git /tmp/mathlib4 > /tmp/mathlib-clone.log 2>&1
+          cd /tmp/mathlib4
+          lake exe cache get > /tmp/mathlib-cache.log 2>&1
+
+      - name: Run attestation verification
+        env:
+          ARCHIVE_PATH: ${{ secrets.CICY58_ARCHIVE_PATH }}
+        run: |
+          set -eu
+          cd "target/$ARCHIVE_PATH/verified"
+          sh verify.sh /tmp/mathlib4 > /tmp/attestation-verification.log 2>&1 || {
+            echo 'ATTESTATION_VERIFICATION_FAIL'
+            exit 1
+          }
+          grep -q '^VERIFICATION_PASS$' /tmp/attestation-verification.log
+          echo 'ATTESTATION_VERIFICATION_PASS'
