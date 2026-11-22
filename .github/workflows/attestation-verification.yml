@@ -19,12 +19,22 @@ jobs:
           token: ${{ secrets.AI_FULL_PAT }}
           path: target
           fetch-depth: 1
-          quiet: true
+          show-progress: false
 
       - name: Install Lean toolchain
-        uses: leanprover/lean-action@v1
-        with:
-          toolchain: leanprover/lean4:v4.20.0
+        env:
+          LEAN_VERSION: 4.20.0
+        run: |
+          set -eu
+          python3 -m pip install --quiet zstandard
+          curl -L --retry 5 --retry-all-errors -o /tmp/lean.tar.zst "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/lean-${LEAN_VERSION}-linux.tar.zst" > /tmp/lean-download.log 2>&1
+          python3 - <<'PY'
+          import os, tarfile, zstandard
+          os.makedirs('/tmp/lean', exist_ok=True)
+          with open('/tmp/lean.tar.zst', 'rb') as fh, zstandard.ZstdDecompressor().stream_reader(fh) as reader, tarfile.open(fileobj=reader, mode='r|') as tf:
+              tf.extractall('/tmp/lean', filter='tar')
+          PY
+          echo "/tmp/lean/lean-${LEAN_VERSION}-linux/bin" >> "$GITHUB_PATH"
 
       - name: Prepare pinned Mathlib
         env:
