@@ -25,7 +25,7 @@ jobs:
           show-progress: false
 
       - name: Prepare verifier
-        run: python3 -m pip install --quiet sympy
+        run: python3 -m pip install --quiet sympy numpy
 
       - name: Verify object package
         env:
