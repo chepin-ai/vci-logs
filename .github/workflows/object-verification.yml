@@ -1,0 +1,70 @@
+name: object-verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Generic verification channel identifier
+        required: false
+        default: default
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout object source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.OBJECT_TARGET_REPO }}
+          token: ${{ secrets.AI_FULL_PAT }}
+          path: object
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Prepare verifier
+        run: python3 -m pip install --quiet sympy
+
+      - name: Verify object package
+        env:
+          OBJECT_PACKAGE: ${{ secrets.OBJECT_PACKAGE }}
+          OBJECT_REBUILD_ENTRY: ${{ secrets.OBJECT_REBUILD_ENTRY }}
+          GH_TOKEN: ${{ secrets.AI_FULL_PAT }}
+          TARGET_PRIVATE_REPO: ${{ secrets.OBJECT_TARGET_REPO }}
+        run: |
+          set -eu
+          rm -rf /tmp/object-verify
+          mkdir -p /tmp/object-verify
+          if ! unzip -q "object/$OBJECT_PACKAGE" -d /tmp/object-verify > /tmp/object-verification.log 2>&1; then
+            echo 'OBJECT_VERIFICATION_FAIL'
+            exit 1
+          fi
+          set +e
+          python3 "/tmp/object-verify/$OBJECT_REBUILD_ENTRY" \
+            --root /tmp/object-verify \
+            --output /tmp/object-verify-result.json >> /tmp/object-verification.log 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            if ! gh issue create --repo "$TARGET_PRIVATE_REPO" \
+              --title "Object verification debug" \
+              --body-file /tmp/object-verification.log > /tmp/object-private-receipt.txt 2>&1; then
+              echo 'OBJECT_DEBUG_RECORD_FAIL'
+            fi
+            echo 'OBJECT_VERIFICATION_FAIL'
+            exit "$rc"
+          fi
+          if ! python3 - <<'PY' >> /tmp/object-verification.log 2>&1
+          import json
+          with open('/tmp/object-verify-result.json') as fh:
+              result = json.load(fh)
+          assert result['public_checks_failed'] == 0
+          assert result['public_checks_passed'] > 0
+          PY
+          then
+            echo 'OBJECT_VERIFICATION_FAIL'
+            exit 1
+          fi
+          echo 'OBJECT_VERIFICATION_PASS'
